@@ -11,6 +11,7 @@
   <p>Bienvenue dans ton Pokédex animal !</p>
 
   <button id="btnCamera">Ouvrir la caméra</button>
+  <button id="btnSwitch">🔄 Changer de caméra</button>
 
   <div>
     <video id="video" autoplay playsinline width="300"></video>
@@ -29,6 +30,7 @@
 
   <script>
     const btnCamera = document.getElementById('btnCamera');
+    const btnSwitch = document.getElementById('btnSwitch');
     const btnPhoto = document.getElementById('btnPhoto');
     const btnAnalyser = document.getElementById('btnAnalyser');
     const video = document.getElementById('video');
@@ -37,9 +39,27 @@
     const ficheNom = document.getElementById('ficheNom');
     const ficheStatut = document.getElementById('ficheStatut');
 
-    btnCamera.addEventListener('click', async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
+    // 'environment' = caméra arrière (par défaut, pratique pour photographier des animaux)
+    // 'user' = caméra avant (selfie)
+    let facingMode = 'environment';
+    let currentStream = null;
+
+    async function demarrerCamera() {
+      // On coupe le flux précédent avant d'en ouvrir un nouveau, sinon les deux tournent en même temps
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      currentStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode }
+      });
+      video.srcObject = currentStream;
+    }
+
+    btnCamera.addEventListener('click', demarrerCamera);
+
+    btnSwitch.addEventListener('click', () => {
+      facingMode = facingMode === 'environment' ? 'user' : 'environment';
+      demarrerCamera();
     });
 
     btnPhoto.addEventListener('click', () => {
