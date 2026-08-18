@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gotcha</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
 </head>
 <body>
 
@@ -45,13 +47,20 @@
     let currentStream = null;
 
     async function demarrerCamera() {
-      // On coupe le flux précédent avant d'en ouvrir un nouveau, sinon les deux tournent en même temps
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
       }
-      currentStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode }
-      });
+      try {
+        // "exact" force vraiment le changement de caméra (certains téléphones ignorent le mode simple)
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: facingMode } }
+        });
+      } catch (err) {
+        // Si le téléphone n'a pas cette caméra précise en "exact", on retente en mode "souhaité" plutôt qu'obligatoire
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode }
+        });
+      }
       video.srcObject = currentStream;
     }
 
@@ -67,52 +76,39 @@
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
     });
 
-    const GOOGLE_API_KEY = 'AIzaSyAjln-vlt5dtDfprwSAAmoyRTsiW5YUgEQ';
+    // On charge le modèle de reconnaissance dès l'ouverture de la page (ça prend 2-5 secondes)
+    let modele = null;
+    ficheStatut.textContent = '';
+    async function chargerModele() {
+      modele = await mobilenet.load();
+      console.log('Modèle chargé et prêt');
+    }
+    chargerModele();
 
     btnAnalyser.addEventListener('click', async () => {
       fiche.style.display = 'block';
+
+      if (!modele) {
+        ficheNom.textContent = '...';
+        ficheStatut.textContent = 'Le modèle charge encore, réessaie dans 2 secondes.';
+        return;
+      }
+
       ficheNom.textContent = '...';
       ficheStatut.textContent = 'Analyse en cours...';
 
-      // On récupère l'image du canvas en base64 (sans le préfixe "data:image/jpeg;base64,")
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      const base64Image = dataUrl.split(',')[1];
+      const predictions = await modele.classify(canvas);
 
-      // On construit la requête attendue par Google Vision
-      const body = {
-        requests: [
-          {
-            image: { content: base64Image },
-            features: [{ type: 'LABEL_DETECTION', maxResults: 5 }]
-          }
-        ]
-      };
-
-      try {
-        const response = await fetch(
-          `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          }
-        );
-
-        const data = await response.json();
-        const labels = data.responses[0].labelAnnotations;
-
-        if (labels && labels.length > 0) {
-          ficheNom.textContent = labels[0].description;
-          const autres = labels.slice(1, 4).map(l => l.description).join(', ');
-          ficheStatut.textContent = `Autres possibilités : ${autres}`;
-        } else {
-          ficheNom.textContent = 'Non identifié';
-          ficheStatut.textContent = 'Essaie une autre photo, plus nette ou plus proche.';
-        }
-      } catch (error) {
-        ficheNom.textContent = 'Erreur';
-        ficheStatut.textContent = 'Impossible de contacter le service d\'identification.';
-        console.error(error);
+      if (predictions && predictions.length > 0) {
+        ficheNom.textContent = predictions[0].className;
+        const confiance = Math.round(predictions[0].probability * 100);
+        const autres = predictions.slice(1, 3)
+          .map(p => p.className)
+          .join(', ');
+        ficheStatut.textContent = `Confiance : ${confiance}% — Autres possibilités : ${autres}`;
+      } else {
+        ficheNom.textContent = 'Non identifié';
+        ficheStatut.textContent = 'Essaie une autre photo, plus nette ou plus proche.';
       }
     });
   </script>
