@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gotcha</title>
+</head>
+<body>
+
+  <h1>Gotcha 📸</h1>
+  <p>Bienvenue dans ton Pokédex animal !</p>
+
+  <button id="btnCamera">Ouvrir la caméra</button>
+
+  <div>
+    <video id="video" autoplay playsinline width="300"></video>
+  </div>
+
+  <button id="btnPhoto">📷 Prendre la photo</button>
+
+  <canvas id="canvas" width="300" height="300" style="border: 2px solid black;"></canvas>
+
+  <button id="btnAnalyser">🔍 Identifier cet animal</button>
+
+  <div id="fiche" style="border: 2px solid green; padding: 10px; margin-top: 10px; display: none;">
+    <h2 id="ficheNom">Nom de l'espèce</h2>
+    <p id="ficheStatut">En attente d'analyse...</p>
+  </div>
+
+  <script>
+    const btnCamera = document.getElementById('btnCamera');
+    const btnPhoto = document.getElementById('btnPhoto');
+    const btnAnalyser = document.getElementById('btnAnalyser');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const fiche = document.getElementById('fiche');
+    const ficheNom = document.getElementById('ficheNom');
+    const ficheStatut = document.getElementById('ficheStatut');
+
+    btnCamera.addEventListener('click', async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+    });
+
+    btnPhoto.addEventListener('click', () => {
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    });
+
+    btnAnalyser.addEventListener('click', () => {
+      fiche.style.display = 'block';
+      ficheNom.textContent = 'Espèce à déterminer';
+      ficheStatut.textContent = 'Analyse en cours... (API à brancher à la prochaine étape)';
+    });
+  </script>
+
+</body>
+</html>
