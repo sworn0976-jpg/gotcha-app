@@ -2,116 +2,1150 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gotcha</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Gatcha</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --text-secondary: #6b7280;
+      --accent: #111827;
+      --green: #10b981;
+      --border: #e5e7eb;
+      --shadow: 0 4px 20px rgba(0,0,0,0.06);
+      --radius: 20px;
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      padding-bottom: calc(90px + var(--safe-bottom));
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(247,248,250,0.92);
+      backdrop-filter: blur(12px);
+      padding: 12px 16px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .progress-pill {
+      background: white;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .energy {
+      background: white;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #374151;
+    }
+
+    /* ===== VIEWS ===== */
+    .view { display: none; padding: 0 16px 20px; }
+    .view.active { display: block; }
+
+    /* ===== COLLECTION ===== */
+    .filters {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 0 16px;
+      scrollbar-width: none;
+    }
+    .filters::-webkit-scrollbar { display: none; }
+
+    .filter-btn {
+      flex-shrink: 0;
+      background: white;
+      border: none;
+      border-radius: 14px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .animal-card {
+      background: white;
+      border-radius: 18px;
+      padding: 12px 8px 10px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform 0.15s;
+      position: relative;
+      min-height: 130px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .animal-card:active { transform: scale(0.96); }
+
+    .animal-card.locked {
+      opacity: 0.55;
+    }
+    .animal-card.locked .silhouette {
+      filter: grayscale(1) brightness(1.4);
+    }
+
+    .silhouette {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      margin: 4px 0;
+      font-size: 48px;
+      line-height: 1;
+    }
+
+    .animal-number {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+    }
+
+    .animal-name-fr {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-top: 2px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .animal-name-en {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* ===== CAMERA ===== */
+    .camera-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding-top: 8px;
+    }
+
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 1;
+      border-radius: 24px;
+      overflow: hidden;
+      background: #111;
+      box-shadow: var(--shadow);
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #canvas {
+      display: none;
+    }
+
+    .cam-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: var(--shadow);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-secondary {
+      background: white;
+      color: var(--text);
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .preview-card {
+      width: 100%;
+      max-width: 360px;
+      background: white;
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      display: none;
+    }
+    .preview-card.show { display: block; }
+
+    #previewImg {
+      width: 100%;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== DETAIL MODAL ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: white;
+      width: 100%;
+      max-width: 480px;
+      max-height: 92dvh;
+      border-radius: 28px 28px 0 0;
+      overflow-y: auto;
+      padding: 12px 20px 40px;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-handle {
+      width: 40px;
+      height: 4px;
+      background: #d1d5db;
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    .rarity {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ecfdf5;
+      color: #059669;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+
+    .detail-name {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 4px;
+    }
+
+    .detail-scientific {
+      font-size: 15px;
+      font-style: italic;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .detail-english {
+      font-size: 14px;
+      color: #4b5563;
+      margin-bottom: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #f3f4f6;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 999px;
+      margin-right: 6px;
+      margin-bottom: 8px;
+    }
+
+    .description {
+      font-size: 15px;
+      line-height: 1.55;
+      color: #374151;
+      margin: 16px 0;
+    }
+
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .stat {
+      background: #f9fafb;
+      border-radius: 14px;
+      padding: 12px 14px;
+      flex: 1;
+      min-width: 140px;
+    }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+    }
+    .stat-value {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 24px 0 10px;
+    }
+
+    .fun-fact {
+      background: #f0f9ff;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1e3a5f;
+    }
+
+    .action-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid var(--border);
+      padding: 10px 0 calc(10px + var(--safe-bottom));
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 60;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.04);
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      color: #9ca3af;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 16px;
+      border-radius: 16px;
+      transition: all 0.2s;
+    }
+    .nav-item.active {
+      color: var(--accent);
+    }
+    .nav-item .icon {
+      font-size: 24px;
+      line-height: 1;
+    }
+    .nav-item.camera-btn {
+      background: var(--accent);
+      color: white;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin-top: -28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      justify-content: center;
+    }
+    .nav-item.camera-btn .icon { font-size: 28px; }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+    .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+  </style>
 </head>
 <body>
 
-  <h1>Gotcha 📸</h1>
-  <p>Bienvenue dans ton Pokédex animal !</p>
-
-  <button id="btnCamera">Ouvrir la caméra</button>
-  <button id="btnSwitch">🔄 Changer de caméra</button>
-
-  <div>
-    <video id="video" autoplay playsinline width="300"></video>
+  <div class="header">
+    <div class="progress-pill">
+      <span>📦</span>
+      <span id="progressText">0 / 320</span>
+    </div>
+    <div class="energy">
+      <span>⚡</span>
+      <span id="energyText">∞</span>
+    </div>
   </div>
 
-  <button id="btnPhoto">📷 Prendre la photo</button>
-
-  <canvas id="canvas" width="300" height="300" style="border: 2px solid black;"></canvas>
-
-  <button id="btnAnalyser">🔍 Identifier cet animal</button>
-
-  <div id="fiche" style="border: 2px solid green; padding: 10px; margin-top: 10px; display: none;">
-    <h2 id="ficheNom">Nom de l'espèce</h2>
-    <p id="ficheStatut">En attente d'analyse...</p>
+  <!-- COLLECTION VIEW -->
+  <div id="view-collection" class="view active">
+    <div class="filters" id="filters"></div>
+    <div class="grid" id="animalGrid"></div>
   </div>
+
+  <!-- CAMERA VIEW -->
+  <div id="view-camera" class="view">
+    <div class="camera-container">
+      <div class="video-wrapper">
+        <video id="video" autoplay playsinline muted></video>
+      </div>
+      <canvas id="canvas" width="300" height="300"></canvas>
+
+      <div class="cam-controls">
+        <button class="btn btn-secondary" id="btnCamera">📷 Ouvrir caméra</button>
+        <button class="btn btn-secondary" id="btnSwitch">🔄 Changer</button>
+        <button class="btn btn-primary" id="btnPhoto">📸 Capturer</button>
+      </div>
+
+      <div class="preview-card" id="previewCard">
+        <img id="previewImg" alt="Photo prise">
+        <button class="btn btn-primary" id="btnAnalyser" style="width:100%; justify-content:center;">
+          🔍 Identifier cet animal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-view="collection">
+      <span class="icon">🗂️</span>
+      <span>Collection</span>
+    </button>
+    <button class="nav-item camera-btn" data-view="camera">
+      <span class="icon">📷</span>
+    </button>
+    <button class="nav-item" data-view="collection">
+      <span class="icon">📖</span>
+      <span>Journal</span>
+    </button>
+  </nav>
 
   <script>
-    const btnCamera = document.getElementById('btnCamera');
-    const btnSwitch = document.getElementById('btnSwitch');
-    const btnPhoto = document.getElementById('btnPhoto');
-    const btnAnalyser = document.getElementById('btnAnalyser');
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const fiche = document.getElementById('fiche');
-    const ficheNom = document.getElementById('ficheNom');
-    const ficheStatut = document.getElementById('ficheStatut');
-
-    // 'environment' = caméra arrière (par défaut, pratique pour photographier des animaux)
-    // 'user' = caméra avant (selfie)
-    let facingMode = 'environment';
-    let currentStream = null;
-
-    async function demarrerCamera() {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+    // ========== STOCKAGE SÉCURISÉ (évite l'erreur sandbox localStorage) ==========
+    const memoryStore = {};
+    const safeStorage = {
+      getItem(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch (e) {
+          return memoryStore[key] || null;
+        }
+      },
+      setItem(key, value) {
+        try {
+          localStorage.setItem(key, value);
+        } catch (e) {
+          memoryStore[key] = value;
+        }
       }
-      try {
-        // "exact" force vraiment le changement de caméra (certains téléphones ignorent le mode simple)
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facingMode } }
-        });
-      } catch (err) {
-        // Si le téléphone n'a pas cette caméra précise en "exact", on retente en mode "souhaité" plutôt qu'obligatoire
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facingMode }
-        });
+    };
+
+    // ========== BASE DE DONNÉES ANIMAUX (enrichie) ==========
+    const ANIMAUX = {
+      // Poissons
+      "goldfish": {
+        fr: "Poisson rouge", en: "Goldfish", sci: "Carassius auratus",
+        categorie: "poisson", rarete: "Commun",
+        description: "Petit poisson d’eau douce très populaire en aquarium. Originaire d’Asie de l’Est, il a été domestiqué il y a plus de mille ans.",
+        biome: "Eaux douces stagnantes et lentes", region: "Asie de l’Est (Chine, Japon)",
+        taille: "10-30 cm", regime: "Omnivore",
+        fun: "Les poissons rouges peuvent reconnaître leurs propriétaires et apprendre des tours simples."
+      },
+      "tench": {
+        fr: "Tanche", en: "Tench", sci: "Tinca tinca",
+        categorie: "poisson", rarete: "Peu commun",
+        description: "Poisson d’eau douce au corps trapu et à la peau verdâtre. Il affectionne les fonds vaseux des lacs et rivières calmes.",
+        biome: "Lacs et rivières à fond vaseux", region: "Europe et Asie occidentale",
+        taille: "20-70 cm", regime: "Omnivore",
+        fun: "La tanche est surnommée « le médecin des poissons » car d’autres espèces se frottent contre elle."
+      },
+      "great white shark": {
+        fr: "Grand requin blanc", en: "Great white shark", sci: "Carcharodon carcharias",
+        categorie: "poisson", rarete: "Rare",
+        description: "Le plus grand prédateur des océans. Reconnaissable à sa silhouette fuselée et à ses dents triangulaires acérées.",
+        biome: "Océans côtiers tempérés et tropicaux", region: "Mondiale (surtout Afrique du Sud, Australie, Californie)",
+        taille: "4-6 m", regime: "Carnivore",
+        fun: "Il peut détecter une goutte de sang dans 100 litres d’eau et nage à plus de 50 km/h."
+      },
+      "tiger shark": {
+        fr: "Requin-tigre", en: "Tiger shark", sci: "Galeocerdo cuvier",
+        categorie: "poisson", rarete: "Peu commun",
+        description: "Requin de grande taille aux rayures verticales caractéristiques chez les jeunes. Omnivore opportuniste redoutable.",
+        biome: "Eaux côtières tropicales et subtropicales", region: "Océans tropicaux du monde",
+        taille: "3-5 m", regime: "Omnivore opportuniste",
+        fun: "On l’appelle parfois « poubelle des mers » car il avale presque tout ce qu’il trouve."
+      },
+      "hammerhead": {
+        fr: "Requin-marteau", en: "Hammerhead shark", sci: "Sphyrna spp.",
+        categorie: "poisson", rarete: "Peu commun",
+        description: "Requin unique grâce à sa tête aplatie en forme de marteau qui lui offre une vision stéréoscopique exceptionnelle.",
+        biome: "Eaux côtières tropicales", region: "Océans tropicaux et subtropicaux",
+        taille: "1-6 m selon l’espèce", regime: "Carnivore",
+        fun: "La forme de sa tête lui permet de scanner le fond marin comme un détecteur de métaux."
+      },
+
+      // Oiseaux
+      "ostrich": {
+        fr: "Autruche", en: "Ostrich", sci: "Struthio camelus",
+        categorie: "oiseau", rarete: "Commun",
+        description: "Le plus grand oiseau vivant. Incapable de voler, elle atteint des vitesses de course impressionnantes.",
+        biome: "Savanes et déserts", region: "Afrique",
+        taille: "2-2,8 m", regime: "Omnivore",
+        fun: "Ses yeux sont plus gros que son cerveau. Elle peut courir à 70 km/h."
+      },
+      "bald eagle": {
+        fr: "Pygargue à tête blanche", en: "Bald eagle", sci: "Haliaeetus leucocephalus",
+        categorie: "oiseau", rarete: "Peu commun",
+        description: "Symbole des États-Unis. Rapace majestueux au plumage brun et à la tête blanche.",
+        biome: "Zones côtières et lacs", region: "Amérique du Nord",
+        taille: "70-100 cm", regime: "Carnivore (poisson)",
+        fun: "Il peut vivre plus de 30 ans dans la nature et construit les plus grands nids d’oiseaux du monde."
+      },
+      "peacock": {
+        fr: "Paon", en: "Peacock", sci: "Pavo cristatus",
+        categorie: "oiseau", rarete: "Commun",
+        description: "Oiseau célèbre pour la queuee spectaculaire des mâles lors de la parade nuptiale.",
+        biome: "Forêts et zones cultivées", region: "Inde et Asie du Sud-Est",
+        taille: "1-1,2 m (queue jusqu’à 1,5 m)", regime: "Omnivore",
+        fun: "Les « yeux » de sa queuee sont des ocelles destinés à impressionner les femelles."
+      },
+      "flamingo": {
+        fr: "Flamant rose", en: "Flamingo", sci: "Phoenicopterus roseus",
+        categorie: "oiseau", rarete: "Peu commun",
+        description: "Oiseau au long cou et aux pattes élancées. Sa couleur rose vient des caroténoïdes de son alimentation.",
+        biome: "Lagunes et lacs salés", region: "Afrique, Europe du Sud, Asie",
+        taille: "1,2-1,5 m", regime: "Filtreur (crevettes, algues)",
+        fun: "Ils mangent la tête en bas et peuvent dormir debout sur une seule patte."
+      },
+      "hummingbird": {
+        fr: "Colibri", en: "Hummingbird", sci: "Trochilidae",
+        categorie: "oiseau", rarete: "Peu commun",
+        description: "Les plus petits oiseaux du monde. Capable de vol stationnaire et de voler en arrière.",
+        biome: "Forêts tropicales et jardins", region: "Amériques",
+        taille: "5-13 cm", regime: "Nectarivore + insectes",
+        fun: "Son cœur bat jusqu’à 1 200 fois par minute et ses ailes battent 80 fois par seconde."
+      },
+
+      // Mammifères
+      "lion": {
+        fr: "Lion", en: "Lion", sci: "Panthera leo",
+        categorie: "mammifere", rarete: "Peu commun",
+        description: "Le roi de la savane. Seul félin vivant en groupe social (la troupe).",
+        biome: "Savanes et prairies", region: "Afrique subsaharienne",
+        taille: "1,5-2,5 m", regime: "Carnivore",
+        fun: "Le rugissement d’un lion peut s’entendre à 8 km de distance."
+      },
+      "tiger": {
+        fr: "Tigre", en: "Tiger", sci: "Panthera tigris",
+        categorie: "mammifere", rarete: "Rare",
+        description: "Le plus grand félin sauvage. Chaque individu possède un motif de rayures unique.",
+        biome: "Forêts tropicales et mangroves", region: "Asie",
+        taille: "2-3,3 m", regime: "Carnivore",
+        fun: "Les tigres sont d’excellents nageurs et aiment l’eau, contrairement à la plupart des chats."
+      },
+      "elephant": {
+        fr: "Éléphant", en: "Elephant", sci: "Loxodonta africana / Elephas maximus",
+        categorie: "mammifere", rarete: "Peu commun",
+        description: "Le plus grand animal terrestre. Doté d’une mémoire exceptionnelle et d’une intelligence sociale complexe.",
+        biome: "Savanes, forêts et zones humides", region: "Afrique et Asie",
+        taille: "2,5-4 m au garrot", regime: "Herbivore",
+        fun: "Ils communiquent par infrasons inaudibles pour l’oreille humaine sur des kilomètres."
+      },
+      "giraffe": {
+        fr: "Girafe", en: "Giraffe", sci: "Giraffa camelopardalis",
+        categorie: "mammifere", rarete: "Commun",
+        description: "L’animal terrestre le plus haut. Son long cou lui permet d’atteindre les feuilles des acacias.",
+        biome: "Savanes", region: "Afrique",
+        taille: "4,5-5,5 m", regime: "Herbivore",
+        fun: "Son cœur pèse 11 kg et pompe le sang jusqu’au cerveau à 2 mètres de hauteur."
+      },
+      "zebra": {
+        fr: "Zèbre", en: "Zebra", sci: "Equus quagga",
+        categorie: "mammifere", rarete: "Commun",
+        description: "Équidé rayé noir et blanc. Chaque zèbre a un motif unique comme une empreinte digitale.",
+        biome: "Savanes et prairies", region: "Afrique",
+        taille: "1,2-1,5 m", regime: "Herbivore",
+        fun: "Les rayures perturbent les prédateurs et repoussent les mouches tsé-tsé."
+      },
+      "koala": {
+        fr: "Koala", en: "Koala", sci: "Phascolarctos cinereus",
+        categorie: "mammifere", rarete: "Peu commun",
+        description: "Marsupial arboricole australien qui se nourrit presque exclusivement de feuilles d’eucalyptus.",
+        biome: "Forêts d’eucalyptus", region: "Australie",
+        taille: "60-85 cm", regime: "Herbivore (eucalyptus)",
+        fun: "Il dort jusqu’à 22 heures par jour à cause de son alimentation très peu énergétique."
+      },
+      "panda": {
+        fr: "Panda géant", en: "Giant panda", sci: "Ailuropoda melanoleuca",
+        categorie: "mammifere", rarete: "Rare",
+        description: "Ours noir et blanc emblématique de la Chine. Spécialisé dans la consommation de bambou.",
+        biome: "Forêts de montagne", region: "Chine centrale",
+        taille: "1,2-1,8 m", regime: "Herbivore (bambou)",
+        fun: "Malgré son régime végétarien, son système digestif reste celui d’un carnivore."
+      },
+      "brown bear": {
+        fr: "Ours brun", en: "Brown bear", sci: "Ursus arctos",
+        categorie: "mammifere", rarete: "Peu commun",
+        description: "Grand omnivore puissant présent dans de nombreuses régions de l’hémisphère nord.",
+        biome: "Forêts, montagnes, toundra", region: "Europe, Asie, Amérique du Nord",
+        taille: "1,5-2,8 m", regime: "Omnivore",
+        fun: "Il peut courir à 50 km/h et a un odorat sept fois plus développé que celui d’un chien."
+      },
+      "polar bear": {
+        fr: "Ours polaire", en: "Polar bear", sci: "Ursus maritimus",
+        categorie: "mammifere", rarete: "Rare",
+        description: "Le plus grand carnivore terrestre. Parfaitement adapté à la vie arctique.",
+        biome: "Banquise et côtes arctiques", region: "Arctique",
+        taille: "2-3 m", regime: "Carnivore (phoques)",
+        fun: "Sa fourrure est translucide (pas blanche) et sa peau est noire pour absorber la chaleur."
+      },
+      "wolf": {
+        fr: "Loup gris", en: "Gray wolf", sci: "Canis lupus",
+        categorie: "mammifere", rarete: "Peu commun",
+        description: "Ancêtre du chien domestique. Animal social vivant en meute hiérarchisée.",
+        biome: "Forêts, toundra, montagnes", region: "Hémisphère nord",
+        taille: "1-1,6 m", regime: "Carnivore",
+        fun: "Un loup peut parcourir jusqu’à 70 km en une seule nuit pour chasser."
+      },
+      "fox": {
+        fr: "Renard roux", en: "Red fox", sci: "Vulpes vulpes",
+        categorie: "mammifere", rarete: "Commun",
+        description: "Canidé rusé et adaptable, présent dans presque tous les habitats de l’hémisphère nord.",
+        biome: "Forêts, campagnes, villes", region: "Hémisphère nord",
+        taille: "45-90 cm", regime: "Omnivore",
+        fun: "Il peut entendre un rongeur sous 1 mètre de neige et bondir pour l’attraper."
+      },
+      "red panda": {
+        fr: "Panda roux", en: "Red panda", sci: "Ailurus fulgens",
+        categorie: "mammifere", rarete: "Rare",
+        description: "Petit mammifère arboricole au pelage roux et à la queuee annelée. Plus proche des ratons laveurs que des pandas géants.",
+        biome: "Forêts de montagne tempérées", region: "Himalaya et Chine",
+        taille: "50-64 cm", regime: "Herbivore (bambou) + fruits",
+        fun: "Il possède un « faux pouce » qui l’aide à grimper et à tenir le bambou."
+      },
+
+      // Reptiles
+      "green iguana": {
+        fr: "Iguane vert", en: "Green iguana", sci: "Iguana iguana",
+        categorie: "reptile", rarete: "Commun",
+        description: "Grand lézard arboricole d’Amérique tropicale, souvent élevé en captivité.",
+        biome: "Forêts tropicales", region: "Amérique centrale et du Sud",
+        taille: "1,5-2 m", regime: "Herbivore",
+        fun: "Il peut rester sous l’eau plus de 30 minutes et nage très bien."
+      },
+      "komodo dragon": {
+        fr: "Dragon de Komodo", en: "Komodo dragon", sci: "Varanus komodoensis",
+        categorie: "reptile", rarete: "Rare",
+        description: "Le plus grand lézard vivant. Prédateur apex des îles indonésiennes.",
+        biome: "Savanes sèches et forêts", region: "Îles de Komodo (Indonésie)",
+        taille: "2-3 m", regime: "Carnivore",
+        fun: "Sa salive contient des bactéries et du venin qui affaiblissent ses proies."
+      },
+      "chameleon": {
+        fr: "Caméléon", en: "Chameleon", sci: "Chamaeleonidae",
+        categorie: "reptile", rarete: "Peu commun",
+        description: "Lézard célèbre pour sa capacité à changer de couleur et ses yeux indépendants.",
+        biome: "Forêts et buissons", region: "Afrique, Madagascar, Europe du Sud",
+        taille: "2-70 cm selon l’espèce", regime: "Insectivore",
+        fun: "Sa langue peut s’étendre à 1,5 fois la longueur de son corps en 0,07 seconde."
+      },
+
+      // Amphibiens
+      "axolotl": {
+        fr: "Axolotl", en: "Axolotl", sci: "Ambystoma mexicanum",
+        categorie: "amphibien", rarete: "Rare",
+        description: "Salamandre néoténique qui conserve ses branchies toute sa vie. Capable de régénérer des membres entiers.",
+        biome: "Lacs d’eau douce", region: "Mexique (lac Xochimilco)",
+        taille: "15-45 cm", regime: "Carnivore",
+        fun: "Il peut régénérer son cœur, son cerveau et même sa moelle épinière."
+      },
+      "tree frog": {
+        fr: "Rainette", en: "Tree frog", sci: "Hylidae",
+        categorie: "amphibien", rarete: "Commun",
+        description: "Grenouille arboricole aux doigts pourvus de ventouses adhésives.",
+        biome: "Forêts et zones humides", region: "Mondiale (surtout tropiques)",
+        taille: "2-10 cm", regime: "Insectivore",
+        fun: "Certaines espèces changent de couleur selon la température et l’humidité."
+      },
+
+      // Insectes & autres
+      "butterfly": {
+        fr: "Papillon", en: "Butterfly", sci: "Lepidoptera",
+        categorie: "insecte", rarete: "Commun",
+        description: "Insecte à métamorphose complète, célèbre pour ses ailes colorées et son vol délicat.",
+        biome: "Presque tous les habitats terrestres", region: "Mondiale",
+        taille: "1-30 cm d’envergure", regime: "Nectarivore",
+        fun: "Le monarque migre sur plus de 4 000 km entre le Canada et le Mexique."
+      },
+      "spider": {
+        fr: "Araignée", en: "Spider", sci: "Araneae",
+        categorie: "arachnide", rarete: "Commun",
+        description: "Arachnide prédatrice qui tisse des toiles de soie pour capturer ses proies.",
+        biome: "Presque tous les habitats", region: "Mondiale",
+        taille: "0,5 mm à 30 cm", regime: "Carnivore",
+        fun: "La soie d’araignée est plus résistante que l’acier à poids égal."
+      },
+      "snail": {
+        fr: "Escargot", en: "Snail", sci: "Gastropoda",
+        categorie: "mollusque", rarete: "Commun",
+        description: "Mollusque gastéropode muni d’une coquille hélicoïdale dans laquelle il se rétracte.",
+        biome: "Jardins, forêts, zones humides", region: "Mondiale",
+        taille: "1-15 cm", regime: "Herbivore / détritivore",
+        fun: "Il possède des milliers de dents microscopiques sur sa radula."
       }
-      video.srcObject = currentStream;
-    }
+    };
 
-    btnCamera.addEventListener('click', demarrerCamera);
+    // Alias pour les noms que MobileNet peut renvoyer
+    const ALIASES = {
+      "ice bear": "polar bear",
+      "brown bear": "brown bear",
+      "American black bear": "brown bear",
+      "giant panda": "panda",
+      "lesser panda": "red panda",
+      "African elephant": "elephant",
+      "Indian elephant": "elephant",
+      "zebra": "zebra",
+      "tiger": "tiger",
+      "lion": "lion",
+      "cheetah": "lion",
+      "leopard": "tiger",
+      "jaguar": "tiger",
+      "wolf": "wolf",
+      "red wolf": "wolf",
+      "coyote": "wolf",
+      "red fox": "fox",
+      "kit fox": "fox",
+      "Arctic fox": "fox",
+      "grey fox": "fox",
+      "koala": "koala",
+      "wallaby": "koala",
+      "wombat": "koala",
+      "ostrich": "ostrich",
+      "peacock": "peacock",
+      "flamingo": "flamingo",
+      "hummingbird": "hummingbird",
+      "bald eagle": "bald eagle",
+      "vulture": "bald eagle",
+      "great grey owl": "bald eagle",
+      "goldfish": "goldfish",
+      "tench": "tench",
+      "great white shark": "great white shark",
+      "tiger shark": "tiger shark",
+      "hammerhead": "hammerhead",
+      "hammerhead shark": "hammerhead",
+      "green iguana": "green iguana",
+      "common iguana": "green iguana",
+      "iguana": "green iguana",
+      "Komodo dragon": "komodo dragon",
+      "chameleon": "chameleon",
+      "African chameleon": "chameleon",
+      "axolotl": "axolotl",
+      "tree frog": "tree frog",
+      "bullfrog": "tree frog",
+      "butterfly": "butterfly",
+      "spider": "spider",
+      "snail": "snail",
+      "slug": "snail"
+    };
 
-    btnSwitch.addEventListener('click', () => {
-      facingMode = facingMode === 'environment' ? 'user' : 'environment';
-      demarrerCamera();
-    });
-
-    btnPhoto.addEventListener('click', () => {
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    });
-
-    // On charge le modèle de reconnaissance dès l'ouverture de la page (ça prend 2-5 secondes)
+    // ========== ÉTAT ==========
     let modele = null;
-    ficheStatut.textContent = '';
-    async function chargerModele() {
-      modele = await mobilenet.load();
-      console.log('Modèle chargé et prêt');
+    let facingMode = "environment";
+    let currentStream = null;
+    let collected = [];
+    try {
+      const saved = safeStorage.getItem("gatcha_collected");
+      if (saved) collected = JSON.parse(saved);
+    } catch (e) {
+      collected = [];
     }
-    chargerModele();
+    let currentFilter = "tout";
 
-    btnAnalyser.addEventListener('click', async () => {
-      fiche.style.display = 'block';
+    const CATEGORIES = [
+      { id: "tout", label: "Tout", icon: "📦" },
+      { id: "mammifere", label: "Mammifères", icon: "🐾" },
+      { id: "oiseau", label: "Oiseaux", icon: "🐦" },
+      { id: "reptile", label: "Reptiles", icon: "🦎" },
+      { id: "amphibien", label: "Amphibiens", icon: "🐸" },
+      { id: "poisson", label: "Poissons", icon: "🐟" },
+      { id: "insecte", label: "Insectes", icon: "🐛" },
+      { id: "arachnide", label: "Arachnides", icon: "🕷️" },
+      { id: "mollusque", label: "Mollusques", icon: "🐌" }
+    ];
 
-      if (!modele) {
-        ficheNom.textContent = '...';
-        ficheStatut.textContent = 'Le modèle charge encore, réessaie dans 2 secondes.';
+    // ========== INIT ==========
+    async function init() {
+      renderFilters();
+      renderGrid();
+      updateProgress();
+
+      try {
+        modele = await mobilenet.load({ version: 2, alpha: 1.0 });
+        console.log("Modèle MobileNet chargé");
+      } catch (e) {
+        console.error("Erreur chargement modèle", e);
+      }
+    }
+
+    function updateProgress() {
+      const total = Object.keys(ANIMAUX).length;
+      document.getElementById("progressText").textContent = `${collected.length} / ${total}`;
+    }
+
+    function saveCollected() {
+      try {
+        safeStorage.setItem("gatcha_collected", JSON.stringify(collected));
+      } catch (e) {
+        // déjà géré par safeStorage
+      }
+    }
+
+    function renderFilters() {
+      const container = document.getElementById("filters");
+      container.innerHTML = CATEGORIES.map(c => {
+        const count = c.id === "tout"
+          ? collected.length
+          : collected.filter(id => ANIMAUX[id]?.categorie === c.id).length;
+        const total = c.id === "tout"
+          ? Object.keys(ANIMAUX).length
+          : Object.values(ANIMAUX).filter(a => a.categorie === c.id).length;
+        return `
+          <button class="filter-btn ${currentFilter === c.id ? "active" : ""}" data-filter="${c.id}">
+            ${c.icon} ${c.label} ${count}/${total}
+          </button>
+        `;
+      }).join("");
+
+      container.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          currentFilter = btn.dataset.filter;
+          renderFilters();
+          renderGrid();
+        });
+      });
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById("animalGrid");
+      let list = Object.entries(ANIMAUX);
+
+      if (currentFilter !== "tout") {
+        list = list.filter(([id, a]) => a.categorie === currentFilter);
+      }
+
+      list.sort((a, b) => {
+        const aFound = collected.includes(a[0]);
+        const bFound = collected.includes(b[0]);
+        if (aFound !== bFound) return bFound - aFound;
+        return a[1].fr.localeCompare(b[1].fr);
+      });
+
+      if (list.length === 0) {
+        grid.innerHTML = `<div class="empty-state"><div class="emoji">🔍</div>Aucun animal dans cette catégorie</div>`;
         return;
       }
 
-      ficheNom.textContent = '...';
-      ficheStatut.textContent = 'Analyse en cours...';
+      grid.innerHTML = list.map(([id, a], index) => {
+        const found = collected.includes(id);
+        const num = String(index + 1).padStart(3, "0");
+        return `
+          <div class="animal-card ${found ? "" : "locked"}" data-id="${id}">
+            <div class="animal-number">#${num}</div>
+            <div class="silhouette">${found ? getEmoji(a.categorie) : "❔"}</div>
+            <div class="animal-name-fr">${found ? a.fr : "???"}</div>
+            <div class="animal-name-en">${found ? a.en : ""}</div>
+          </div>
+        `;
+      }).join("");
 
-      const predictions = await modele.classify(canvas);
+      grid.querySelectorAll(".animal-card").forEach(card => {
+        card.addEventListener("click", () => {
+          const id = card.dataset.id;
+          if (collected.includes(id)) showDetail(id);
+        });
+      });
+    }
 
-      if (predictions && predictions.length > 0) {
-        ficheNom.textContent = predictions[0].className;
-        const confiance = Math.round(predictions[0].probability * 100);
-        const autres = predictions.slice(1, 3)
-          .map(p => p.className)
-          .join(', ');
-        ficheStatut.textContent = `Confiance : ${confiance}% — Autres possibilités : ${autres}`;
+    function getEmoji(cat) {
+      const map = {
+        mammifere: "🦁", oiseau: "🦅", reptile: "🦎", amphibien: "🐸",
+        poisson: "🐠", insecte: "🦋", arachnide: "🕷️", mollusque: "🐌"
+      };
+      return map[cat] || "🐾";
+    }
+
+    // ========== CAMERA ==========
+    async function demarrerCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: facingMode }, width: { ideal: 720 }, height: { ideal: 720 } }
+        });
+      } catch {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode }
+        });
+      }
+      document.getElementById("video").srcObject = currentStream;
+    }
+
+    document.getElementById("btnCamera").addEventListener("click", demarrerCamera);
+    document.getElementById("btnSwitch").addEventListener("click", () => {
+      facingMode = facingMode === "environment" ? "user" : "environment";
+      demarrerCamera();
+    });
+
+    document.getElementById("btnPhoto").addEventListener("click", () => {
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = 300;
+      canvas.height = 300;
+      ctx.drawImage(video, 0, 0, 300, 300);
+
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      document.getElementById("previewImg").src = dataUrl;
+      document.getElementById("previewCard").classList.add("show");
+    });
+
+    document.getElementById("btnAnalyser").addEventListener("click", async () => {
+      if (!modele) {
+        alert("Le modèle charge encore… Réessaie dans quelques secondes.");
+        return;
+      }
+
+      const canvas = document.getElementById("canvas");
+      const predictions = await modele.classify(canvas, 5);
+
+      if (!predictions || predictions.length === 0) {
+        alert("Impossible d’identifier. Essaie une photo plus nette et centrée.");
+        return;
+      }
+
+      let best = null;
+      let bestProb = 0;
+
+      for (const p of predictions) {
+        const raw = p.className.toLowerCase().split(",")[0].trim();
+        let key = ALIASES[raw] || raw;
+        if (!ANIMAUX[key]) {
+          for (const k of Object.keys(ANIMAUX)) {
+            if (raw.includes(k) || k.includes(raw)) {
+              key = k;
+              break;
+            }
+          }
+        }
+        if (ANIMAUX[key] && p.probability > bestProb) {
+          best = key;
+          bestProb = p.probability;
+        }
+      }
+
+      if (best) {
+        if (!collected.includes(best)) {
+          collected.push(best);
+          saveCollected();
+          updateProgress();
+          renderFilters();
+          renderGrid();
+        }
+        showDetail(best, Math.round(bestProb * 100));
       } else {
-        ficheNom.textContent = 'Non identifié';
-        ficheStatut.textContent = 'Essaie une autre photo, plus nette ou plus proche.';
+        const top = predictions[0];
+        const name = top.className.split(",")[0];
+        showGenericDetail(name, Math.round(top.probability * 100), predictions);
       }
     });
-  </script>
 
+    // ========== DÉTAIL ==========
+    function showDetail(id, conf = null) {
+      const a = ANIMAUX[id];
+      if (!a) return;
+
+      const confText = conf ? `<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">Confiance du modèle : ${conf}%</div>` : "";
+
+      document.getElementById("modalContent").innerHTML = `
+        <div class="modal-handle"></div>
+        <div class="rarity">◆ ${a.rarete.toUpperCase()}</div>
+        <div class="detail-name">${a.fr}</div>
+        <div class="detail-scientific">${a.sci}</div>
+        <div class="detail-english">🇬🇧 ${a.en}</div>
+        ${confText}
+        <div>
+          <span class="tag">${getEmoji(a.categorie)} ${CATEGORIES.find(c => c.id === a.categorie)?.label || a.categorie}</span>
+        </div>
+        <p class="description">${a.description}</p>
+
+        <div class="stats-row">
+          <div class="stat">
+            <div class="stat-label">Biome</div>
+            <div class="stat-value">${a.biome}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Région</div>
+            <div class="stat-value">${a.region}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Taille</div>
+            <div class="stat-value">${a.taille}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Régime</div>
+            <div class="stat-value">${a.regime}</div>
+          </div>
+        </div>
+
+        <div class="section-title">Le saviez-vous ?</div>
+        <div class="fun-fact">💡 ${a.fun}</div>
+
+        <div class="action-btns">
+          <button class="btn btn-secondary" style="width:100%;justify-content:center;" onclick="closeModal()">Fermer</button>
+        </div>
+      `;
+      document.getElementById("modalOverlay").classList.add("open");
+    }
+
+    function showGenericDetail(name, conf, predictions) {
+      const autres = predictions.slice(1, 3).map(p => p.className.split(",")[0]).join(", ");
+      document.getElementById("modalContent").innerHTML = `
+        <div class="modal-handle"></div>
+        <div class="rarity">◆ IDENTIFIÉ</div>
+        <div class="detail-name">${name.charAt(0).toUpperCase() + name.slice(1)}</div>
+        <div class="detail-english">🇬🇧 ${name}</div>
+        <div style="font-size:13px;color:#6b7280;margin:8px 0;">Confiance : ${conf}% — Autres possibilités : ${autres}</div>
+        <p class="description">
+          Cet animal n’est pas encore dans la base enrichie de Gatcha. 
+          MobileNet l’a reconnu comme « ${name} ». 
+          Tu peux le photographier à nouveau plus tard : la base s’enrichit régulièrement !
+        </p>
+        <div class="action-btns">
+          <button class="btn btn-secondary" style="width:100%;justify-content:center;" onclick="closeModal()">Fermer</button>
+        </div>
+      `;
+      document.getElementById("modalOverlay").classList.add("open");
+    }
+
+    function closeModal() {
+      document.getElementById("modalOverlay").classList.remove("open");
+    }
+    document.getElementById("modalOverlay").addEventListener("click", (e) => {
+      if (e.target === document.getElementById("modalOverlay")) closeModal();
+    });
+
+    // ========== NAVIGATION ==========
+    document.querySelectorAll(".nav-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const view = btn.dataset.view;
+        document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+        document.getElementById(`view-${view}`).classList.add("active");
+
+        document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+
+    // Démarrer
+    init();
+  </script>
 </body>
 </html>
